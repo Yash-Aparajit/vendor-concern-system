@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body
+{
+font-family:Arial;
+margin:0;
+padding:0;
+color:#1a1a1a;
+
+background:
+linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+.container{
+max-width:520px;
+margin:auto;
+padding:16px;
+}
+
+.header
+{
+text-align:center;
+margin-bottom:20px;
+padding-top:100px;
+
+
+background-repeat:no-repeat;
+background-position:center top;
+background-size:90px;
+}
+
+
+.logo
+{
+width:90px;
+margin-bottom:6px;
+}
+
+.company{
+font-size:22px;
+font-weight:bold;
+color:#1565C0;
+}
+
+.title{
+font-size:26px;
+font-weight:bold;
+margin-top:6px;
+}
+
+.card
+{
+background:white;
+padding:20px;
+border-radius:14px;
+box-shadow:0 8px 24px rgba(0,0,0,0.08);
+margin-top:10px;
+}
+
+label{
+font-weight:bold;
+display:block;
+margin-top:14px;
+}
+
+input, select, textarea
+{
+width:100%;
+padding:12px;
+margin-top:6px;
+border-radius:8px;
+border:1px solid #ccc;
+font-size:16px;
+box-sizing:border-box;
+}
+
+.shift{
+display:flex;
+gap:8px;
+margin-top:8px;
+}
+
+.shift button{
+flex:1;
+padding:12px;
+border:none;
+border-radius:8px;
+background:#e0e0e0;
+font-weight:bold;
+}
+
+.shift button.active{
+background:#2E7D32;
+color:white;
+}
+
+.save{
+background:#1565C0;
+color:white;
+margin-top:20px;
+font-size:18px;
+padding:14px;
+border:none;
+border-radius:10px;
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+
+<div class="company">
+Your Company name 
+</div>
+
+<div class="title">
+Inward Concern Report
+</div>
+
+</div>
+
+
+<div class="card">
+
+<label>Vendor Code</label>
+<input id="vin" oninput="debouncedFetchVendor()" autocomplete="off">
+
+<label>Vendor Name</label>
+<input id="vendorName" readonly style="background:#f3f4f6;font-weight:bold;">
+
+<label>Dock</label>
+<select id="dock">
+<option>1</option>
+<option>2</option>
+<option>3</option>
+</select>
+
+
+<label>Part ID</label>
+<input id="partId" oninput="debouncedFetchDesc()">
+
+<label>Description</label>
+<input id="description" readonly>
+
+
+<label>Checker</label>
+<input list="checkers" id="checker">
+<datalist id="checkers"></datalist>
+
+
+<label>Shift</label>
+<div class="shift">
+
+<button onclick="setShift(this)">1st Shift</button>
+<button onclick="setShift(this)">2nd Shift</button>
+<button onclick="setShift(this)">3rd Shift</button>
+
+</div>
+
+
+<label>Concern</label>
+<select id="concern">
+
+<option value="">Select Concern</option>
+
+<option>Wrong Part Supplied</option>
+<option>Damaged Material</option>
+<option>Short Quantity</option>
+<option>Poor Packaging</option>
+<option>Label Issue</option>
+<option>Quality Defect</option>
+
+</select>
+
+
+<label>Driver</label>
+<input id="driver">
+
+
+<label>Image</label>
+<input type="file" id="image" accept="image/*" capture="environment">
+
+
+<label>Remark</label>
+<textarea id="remark"></textarea>
+
+
+<button class="save" onclick="save()">SAVE</button>
+
+</div>
+
+</div>
+
+
+<script>
+
+let selectedShift = "";
+let isSaving = false;
+
+
+/* INITIALIZE ON PAGE LOAD */
+window.addEventListener("load", function()
+{
+  /* reset shift */
+  selectedShift = "";
+
+  document.querySelectorAll(".shift button")
+    .forEach(btn => btn.classList.remove("active"));
+
+
+  /* LOAD CHECKERS */
+  google.script.run
+    .withSuccessHandler(function(list)
+    {
+      const checkerList = document.getElementById("checkers");
+
+      checkerList.innerHTML = "";
+
+      list.forEach(function(v)
+      {
+        const opt = document.createElement("option");
+        opt.value = v;
+        checkerList.appendChild(opt);
+      });
+    })
+    .getCheckers();
+
+});
+
+
+/* SHIFT SELECT */
+function setShift(btn)
+{
+  document.querySelectorAll(".shift button")
+    .forEach(b => b.classList.remove("active"));
+
+  btn.classList.add("active");
+
+  selectedShift = btn.innerText;
+}
+
+
+/* SUCCESS / ERROR MESSAGE */
+function showMessage(text, color="green")
+{
+  let msg = document.getElementById("msg");
+
+  if(!msg)
+  {
+    msg = document.createElement("div");
+
+    msg.id = "msg";
+    msg.style.marginTop = "15px";
+    msg.style.fontWeight = "bold";
+
+    document.querySelector(".card").appendChild(msg);
+  }
+
+  msg.style.color = color;
+  msg.innerText = text;
+
+  setTimeout(function()
+  {
+    msg.innerText = "";
+  }, 5000);
+}
+
+
+/* FETCH VENDOR NAME */
+let lastVinRequested = "";
+let vinTimer;
+
+function debouncedFetchVendor()
+{
+  clearTimeout(vinTimer);
+  vinTimer = setTimeout(fetchVendor, 300);
+}
+
+function fetchVendor()
+{
+  const vinField = document.getElementById("vin");
+  const vendorField = document.getElementById("vendorName");
+
+  const vin = vinField.value.trim();
+
+  lastVinRequested = vin;
+
+  if(!vin)
+  {
+    vendorField.value = "";
+    return;
+  }
+
+  vendorField.value = "Checking...";
+
+  google.script.run
+    .withSuccessHandler(function(res)
+    {
+      if(vin !== lastVinRequested)
+        return;
+
+      if(res && res.name)
+      {
+        vendorField.style.color = "#111";
+        vendorField.value = res.name;
+      }
+      else
+      {
+        vendorField.style.color = "red";
+        vendorField.value = "Invalid Vendor Code";
+      }
+    })
+    .withFailureHandler(function()
+    {
+      if(vin !== lastVinRequested)
+        return;
+
+      vendorField.value = "Error validating VIN";
+    })
+    .getVendorByVin(vin);
+}
+
+
+/* FETCH DESCRIPTION */
+let lastPartRequested = "";
+let partTimer;
+
+function debouncedFetchDesc()
+{
+  clearTimeout(partTimer);
+  partTimer = setTimeout(fetchDesc, 300);
+}
+
+function fetchDesc()
+{
+  const partField = document.getElementById("partId");
+  const descField = document.getElementById("description");
+
+  const part = partField.value.trim();
+
+  lastPartRequested = part;
+
+  if(!part)
+  {
+    descField.style.color = "#111";
+    descField.value = "";
+    return;
+  }
+  
+  descField.style.color = "#666";
+  descField.value = "Checking...";
+
+  google.script.run
+    .withSuccessHandler(function(desc)
+    {
+      // Ignore outdated responses
+      if(part !== lastPartRequested)
+        return;
+
+      if(desc)
+      {
+        descField.style.color = "#111";   // normal black
+        descField.value = desc;
+      }
+      else
+      {
+        descField.style.color = "red";    // show error in red
+        descField.value = "Part not found";
+      }
+    })
+    .withFailureHandler(function()
+    {
+      if(part !== lastPartRequested)
+        return;
+
+      descField.value = "Error loading description";
+    })
+    .getPartDescription(part);
+}
+
+
+/* CLEAR FORM */
+function clearForm()
+{
+  document.getElementById("vin").value = "";
+
+  document.getElementById("vendorName").value = "";
+
+  document.getElementById("dock").selectedIndex = 0;
+
+  document.getElementById("partId").value = "";
+
+  document.getElementById("description").value = "";
+
+  document.getElementById("checker").value = "";
+
+  document.getElementById("concern").value = "";
+
+  document.getElementById("driver").value = "";
+
+  document.getElementById("remark").value = "";
+
+  document.getElementById("image").value = "";
+
+  selectedShift = "";
+
+  document.querySelectorAll(".shift button")
+    .forEach(btn => btn.classList.remove("active"));
+}
+
+
+
+/* SAVE BUTTON CLICK */
+function save()
+{
+  if(isSaving) return;
+
+
+  const vinField = document.getElementById("vin");
+
+  const partField = document.getElementById("partId");
+
+  const checkerField = document.getElementById("checker");
+
+  const imageField = document.getElementById("image");
+
+
+  const vinValue = vinField.value.trim();
+
+  const partValue = partField.value.trim();
+
+  const checkerValue = checkerField.value.trim();
+
+
+  if(!vinValue)
+  {
+    showMessage("Enter Vendor Code", "red");
+    return;
+  }
+
+  const vendorNameValue = document.getElementById("vendorName").value.trim();
+
+  if(!vendorNameValue || vendorNameValue === "Checking...")
+  {
+    showMessage("Vendor not validated yet. Wait or re-enter.", "red");
+    return;
+  }
+
+  if(vendorNameValue === "Invalid Vendor Code")
+  {
+    showMessage("Invalid Vendor Code", "red");
+    return;
+  }
+
+  if(!partValue)
+  {
+    showMessage("Enter Part ID", "red");
+    return;
+  }
+
+  if(!checkerValue)
+  {
+    showMessage("Select Checker", "red");
+    return;
+  }
+
+  if(!selectedShift)
+  {
+    showMessage("Select Shift", "red");
+    return;
+  }
+
+
+  isSaving = true;
+
+  const btn = document.querySelector(".save");
+
+  btn.disabled = true;
+
+  btn.innerText = "Saving...";
+
+
+  const file = imageField.files[0];
+
+
+  if(file)
+  {
+    const reader = new FileReader();
+
+    reader.onload = function()
+    {
+      submit(reader.result.split(",")[1]);
+    };
+
+    reader.readAsDataURL(file);
+  }
+  else
+  {
+    submit("");
+  }
+}
+
+
+/* SUBMIT TO SERVER */
+function submit(base64)
+{
+  const formData = {
+    vin         : String(document.getElementById("vin").value || "").trim(),
+    dock        : String(document.getElementById("dock").value || ""),
+    partId      : String(document.getElementById("partId").value || "").trim(),
+    description : String(document.getElementById("description").value || ""),
+    checker     : String(document.getElementById("checker").value || "").trim(),
+    shift       : String(selectedShift || ""),
+    concern     : String(document.getElementById("concern").value || ""),
+    driver      : String(document.getElementById("driver").value || ""),
+    image       : base64 || "",
+    remark      : String(document.getElementById("remark").value || "")
+  };
+
+  console.log("Submitting formData:", formData);
+
+  google.script.run
+    .withSuccessHandler(function()
+    {
+      showMessage("Saved Successfully");
+
+      clearForm();
+
+      isSaving=false;
+
+      const btn=document.querySelector(".save");
+      btn.disabled=false;
+      btn.innerText="SAVE";
+    })
+    .withFailureHandler(function(err)
+    {
+      showMessage(err.message,"red");
+
+      isSaving=false;
+
+      const btn=document.querySelector(".save");
+      btn.disabled=false;
+      btn.innerText="SAVE";
+    })
+    .saveEntry(formData);
+}
+
+
+</script>
+
+
+</body>
+</html>
