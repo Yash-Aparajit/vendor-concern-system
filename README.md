@@ -78,11 +78,10 @@ VendorConcern/
 
 ## Deployment Guide
 
-1. Create Google Sheet
-2. Create required sheets
-3. Add Apps Script
-4. Deploy as Web App
-5. Share with operators
+1. Create required Google Sheet
+2. Add Apps Script with customization
+3. Deploy as Web App
+4. Share the link with operators
 
 ---
 
@@ -130,7 +129,7 @@ Automatically sends structured email with:
 
 ## Author
 
-Schnellecke Jeena Pvt Ltd
+Yash Aparajit
 
 ---
 
