@@ -3,7 +3,7 @@ const PART_SHEET   = "Master_Part";
 const NAME_SHEET   = "Master_Name";
 const LOG_SHEET    = "Inward_Log";
 
-const IMAGE_FOLDER_ID = "Your IMG FOLDER CODE HERE";
+const IMAGE_FOLDER_ID = "Your IMG FOLDER CODE HERE"; //Create a Google drive folder, and copy the link. 
 
 
 function doGet()
@@ -169,9 +169,9 @@ function sendEmail(vendor, form, imageLink)
 `
   <div style="font-family:Arial, sans-serif; font-size:14px; color:#222;">
 
-    <p>Dear Sir,</p>
+    <p>Your Greetings</p>
 
-    <p>Starting email content here.</p>
+    <p>Conern email content, and description.</p>
 
     <br>
 
@@ -242,7 +242,7 @@ function sendEmail(vendor, form, imageLink)
     <br>
 
     <p>
-      Ending email content here. 
+      Ending of the email, and outro for email.
     </p>
 
     <p style="color:#555; font-weight:bold;">
@@ -251,7 +251,7 @@ function sendEmail(vendor, form, imageLink)
 
     <p>
       Thanks & Regards,<br>
-      Your Companie Name
+      Your Company Name
     </p>
 
   </div>
